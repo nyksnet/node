@@ -17,7 +17,7 @@ use libp2p::PeerId;
 use nyks_consensus::network::Network;
 use nyks_p2p::peer::handshake_data::HandshakeData;
 use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::RngExt;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;

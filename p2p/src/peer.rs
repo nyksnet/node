@@ -26,7 +26,7 @@ use nyks_consensus::proof_abstractions::timestamp::Timestamp;
 use nyks_consensus::transaction::transaction_kernel_id::TransactionKernelId;
 use peer_block_notifications::PeerBlockNotification;
 use rand::Rng;
-use rand::RngCore;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Deserialize;

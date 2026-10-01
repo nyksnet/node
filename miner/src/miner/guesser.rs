@@ -14,7 +14,7 @@ use nyks_consensus::tasm_lib::twenty_first::bfe_array;
 use nyks_rpc_client::RpcApi;
 use nyks_rpc_client::http::HttpClient;
 use nyks_rpc_client::mining::template::RpcBlockTemplate;
-use rand::Rng;
+use rand::RngExt;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use tokio::sync::RwLock;

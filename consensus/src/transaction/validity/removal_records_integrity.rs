@@ -5,7 +5,7 @@ use field_count::FieldCount;
 use get_size2::GetSize;
 use itertools::Itertools;
 use rand::Rng;
-use rand::RngCore;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Deserialize;

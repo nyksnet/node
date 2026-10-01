@@ -22,7 +22,7 @@ use nyks_rpc_client::http::HttpClient;
 use nyks_wallet_core::transaction::builder::TransactionBuilder;
 use nyks_wallet_core::transaction::builder::input::TxInputList;
 use nyks_wallet_core::transaction::builder::output::TxOutput;
-use rand::Rng;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use thiserror::Error;

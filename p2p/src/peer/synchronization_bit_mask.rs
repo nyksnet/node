@@ -4,6 +4,7 @@ use std::ops::Not;
 
 use itertools::Itertools;
 use rand::Rng;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Deserialize;

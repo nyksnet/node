@@ -25,7 +25,7 @@ use get_size2::GetSize;
 use itertools::Itertools;
 use mutator_set_update::MutatorSetUpdate;
 use num_traits::Zero;
-use rand::Rng;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Deserialize;

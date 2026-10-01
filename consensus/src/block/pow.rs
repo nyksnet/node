@@ -5,6 +5,7 @@ use std::num::NonZeroUsize;
 use get_size2::GetSize;
 use itertools::Itertools;
 use rand::Rng;
+use rand::RngExt;
 use rand::distr::Distribution;
 use rand::distr::StandardUniform;
 use rayon::iter::IndexedParallelIterator;

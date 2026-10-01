@@ -110,7 +110,7 @@ impl BasicSnippet for NewClaim {
 mod tests {
     use std::collections::HashMap;
 
-    use rand::Rng;
+    use rand::RngExt;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
     use tasm_lib::prelude::BasicSnippet;

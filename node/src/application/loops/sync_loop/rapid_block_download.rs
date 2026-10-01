@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use rand::rng;
-use rand::RngCore;
+use rand::Rng;
 use tokio::fs;
 
 use crate::application::loops::sync_loop::SynchronizationBitMask;

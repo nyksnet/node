@@ -6,7 +6,7 @@ use nyks_consensus::BFieldElement;
 use nyks_consensus::triton_vm::prelude::XFieldElement;
 use nyks_consensus::twenty_first::prelude::Polynomial;
 use nyks_consensus::twenty_first::xfe;
-use rand::Rng;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand::rng;
 use rand::rngs::StdRng;

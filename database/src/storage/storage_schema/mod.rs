@@ -56,7 +56,7 @@ mod tests {
     use itertools::Itertools;
     use rand::random;
     use rand::Rng;
-    use rand::RngCore;
+    use rand::RngExt;
     use serde::Deserialize;
     use serde::Serialize;
     use twenty_first::math::other::random_elements;

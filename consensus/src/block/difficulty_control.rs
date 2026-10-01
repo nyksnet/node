@@ -13,6 +13,7 @@ use num_traits::FromPrimitive;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
 use rand::Rng;
+use rand::RngExt;
 use rand::distr::Distribution;
 use rand::distr::StandardUniform;
 use serde::Deserialize;

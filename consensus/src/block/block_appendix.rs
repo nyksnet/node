@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use get_size2::GetSize;
 use itertools::Itertools;
+use rand::RngExt;
 use serde::Deserialize;
 use serde::Serialize;
 use tasm_lib::prelude::Digest;

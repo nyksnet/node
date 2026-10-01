@@ -20,7 +20,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 clap = { version = "4.5.54", features = ["derive"] }
 num-traits = "0.2.19"
 rayon = "1.10"
-rand = "0.9"
+rand = "0.10"
 
 [dev-dependencies]
 

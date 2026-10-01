@@ -9,7 +9,7 @@ use nyks_consensus::block::block_height::BlockHeight;
 use nyks_consensus::block::Block;
 use nyks_p2p::peer::synchronization_bit_mask::SynchronizationBitMask;
 use rand::rng;
-use rand::Rng;
+use rand::RngExt;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;

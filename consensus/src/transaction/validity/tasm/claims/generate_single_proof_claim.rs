@@ -67,7 +67,7 @@ impl BasicSnippet for GenerateSingleProofClaim {
 mod tests {
     use std::collections::HashMap;
 
-    use rand::Rng;
+    use rand::RngExt;
     use rand::prelude::StdRng;
     use tasm_lib::memory::encode_to_memory;
     use tasm_lib::rust_shadowing_helper_functions;

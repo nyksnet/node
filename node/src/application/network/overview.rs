@@ -122,6 +122,8 @@ mod arbitrary {
 #[cfg(any(test, feature = "mock-rpc"))]
 impl rand::distr::Distribution<NetworkOverview> for rand::distr::StandardUniform {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> NetworkOverview {
+        use rand::RngExt;
+
         const SHA256_CODE: u64 = 0x12;
         let raw_hash = rng.random::<[u8; 32]>();
         let multihash = libp2p::multihash::Multihash::wrap(SHA256_CODE, &raw_hash)
@@ -176,6 +178,7 @@ mod tests {
     use proptest_arbitrary_interop::arb;
     use rand::rng;
     use rand::Rng;
+    use rand::RngExt;
     use test_strategy::proptest;
 
     use super::*;

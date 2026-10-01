@@ -10,11 +10,11 @@ repository = "https://github.com/Nyksnet/nyksnode/"
 
 [dependencies]
 itertools = "0.14"
-tasm-lib = "8.0.0"
-get-size2 = { version = "0.7", features = ["derive"] }
+tasm-lib = "9.0.0"
+get-size2 = { version = "0.9", features = ["derive"] }
 anyhow = { version = "1.0", features = ["backtrace"] }
 serde = { version = "1.0", features = ["derive"] }
-rand = "0.9"
+rand = "0.10"
 num-rational = "0.4"
 num-traits = "0.2"
 tracing = "0.1"

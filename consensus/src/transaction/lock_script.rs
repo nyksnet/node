@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use get_size2::GetSize;
 use itertools::Itertools;
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use serde::Serialize;
 use tasm_lib::triton_vm;

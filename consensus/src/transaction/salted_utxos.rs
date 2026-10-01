@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use get_size2::GetSize;
 use itertools::Itertools;
-use rand::Rng;
+use rand::RngExt;
 use rand::rngs::StdRng;
 use serde::Deserialize;
 use serde::Serialize;
