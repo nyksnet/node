@@ -9,7 +9,6 @@ use crate::model::block::RpcBlock;
 use crate::model::block::header::RpcBlockHeight;
 use crate::model::block::header::RpcBlockPow;
 use crate::model::block::transaction_kernel::RpcAbsoluteIndexSet;
-use crate::model::block::transaction_kernel::RpcAdditionRecord;
 use crate::model::block::transaction_kernel::RpcTransactionKernelId;
 use crate::model::common::BlockSelector;
 use crate::model::json::JsonError;
@@ -249,22 +248,6 @@ pub trait RpcApi: Sync + Send {
         &self,
         request: GetUtxoDigestRequest,
     ) -> RpcResult<GetUtxoDigestResponse>;
-
-    async fn find_utxo_origin(
-        &self,
-        addition_record: RpcAdditionRecord,
-        search_depth: Option<u64>,
-    ) -> RpcResult<FindUtxoOriginResponse> {
-        self.find_utxo_origin_call(FindUtxoOriginRequest {
-            addition_record,
-            search_depth,
-        })
-        .await
-    }
-    async fn find_utxo_origin_call(
-        &self,
-        request: FindUtxoOriginRequest,
-    ) -> RpcResult<FindUtxoOriginResponse>;
 
     /// Check if indices in an absolute index set are set in the node's archival
     /// mutator set. Can be used to check  if a UTXO is spent without having to

@@ -355,28 +355,6 @@ impl RpcApi for RpcServer {
         })
     }
 
-    async fn find_utxo_origin_call(
-        &self,
-        request: FindUtxoOriginRequest,
-    ) -> RpcResult<FindUtxoOriginResponse> {
-        let allowed_search_depth = if self.unrestricted {
-            request.search_depth
-        } else {
-            Some(request.search_depth.unwrap_or(100).min(100))
-        };
-
-        let state = self.state.lock_guard().await;
-        let block = state
-            .chain
-            .archival_state()
-            .find_canonical_block_with_output(request.addition_record.into(), allowed_search_depth)
-            .await;
-
-        Ok(FindUtxoOriginResponse {
-            block: block.map(|block| block.hash()),
-        })
-    }
-
     async fn are_bloom_indices_set_call(
         &self,
         request: AreBloomIndicesSetRequest,

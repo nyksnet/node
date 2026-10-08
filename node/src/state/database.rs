@@ -26,26 +26,8 @@ pub struct BlockRecord {
     pub block_header: BlockHeader,
     pub file_location: BlockFileLocation,
 
-    /// First AOCL index for this block's outputs
-    pub min_aocl_index: u64,
-
-    /// The number of addition records in this block. Includes guesser reward
-    /// UTXOs.
-    pub num_additions: u64,
-
     /// The data missing from BlockHeader in order to calculate the block hash.
     pub(crate) block_hash_witness: HeaderToBlockHashWitness,
-}
-
-impl BlockRecord {
-    /// The last AOCL index for this block's outputs. This addition record *is*
-    /// contained in this block. Counts the guesser reward outputs as belonging
-    /// to this block.
-    pub fn max_aocl_index(&self) -> u64 {
-        // If the genesis block has any outputs (any premine), this is
-        // guaranteed to not overflow.
-        self.min_aocl_index + self.num_additions - 1
-    }
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
