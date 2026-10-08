@@ -9,6 +9,7 @@ use crate::model::block::RpcBlock;
 use crate::model::block::header::RpcBlockHeight;
 use crate::model::block::header::RpcBlockPow;
 use crate::model::block::transaction_kernel::RpcAbsoluteIndexSet;
+use crate::model::block::transaction_kernel::RpcAdditionRecord;
 use crate::model::block::transaction_kernel::RpcTransactionKernelId;
 use crate::model::common::BlockSelector;
 use crate::model::json::JsonError;
