@@ -250,22 +250,6 @@ pub trait RpcApi: Sync + Send {
         request: GetUtxoDigestRequest,
     ) -> RpcResult<GetUtxoDigestResponse>;
 
-    async fn find_utxo_origin(
-        &self,
-        addition_record: RpcAdditionRecord,
-        search_depth: Option<u64>,
-    ) -> RpcResult<FindUtxoOriginResponse> {
-        self.find_utxo_origin_call(FindUtxoOriginRequest {
-            addition_record,
-            search_depth,
-        })
-        .await
-    }
-    async fn find_utxo_origin_call(
-        &self,
-        request: FindUtxoOriginRequest,
-    ) -> RpcResult<FindUtxoOriginResponse>;
-
     /// Check if indices in an absolute index set are set in the node's archival
     /// mutator set. Can be used to check  if a UTXO is spent without having to
     /// know the mutator set membership proof.

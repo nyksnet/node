@@ -1,12 +1,10 @@
 pub(crate) mod import_blocks_from_files;
 
-use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 
 use anyhow::bail;
 use anyhow::Result;
-use itertools::Itertools;
 use memmap2::MmapOptions;
 use num_traits::Zero;
 use nyks_consensus::block::block_header::BlockHeader;
@@ -21,7 +19,6 @@ use nyks_consensus::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use nyks_consensus::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
 use nyks_consensus::mutator_set::removal_record::RemovalRecord;
 use nyks_consensus::network::Network;
-use nyks_consensus::transaction::transaction_kernel::TransactionKernelProxy;
 use nyks_database::create_db_if_missing;
 use nyks_database::storage::storage_schema::traits::*;
 use nyks_database::NeptuneLevelDb;
@@ -445,13 +442,6 @@ impl ArchivalState {
         // Update block index database with newly stored block
         let mut block_index_entries: Vec<(BlockIndexKey, BlockIndexValue)> = vec![];
         let block_record_key: BlockIndexKey = BlockIndexKey::Block(new_block.hash());
-        let num_additions: u64 = new_block
-            .mutator_set_update()
-            .expect("MS update for new block must exist")
-            .additions
-            .len()
-            .try_into()
-            .expect("Num addition records cannot exceed u64::MAX");
         let block_record_value: BlockIndexValue = BlockIndexValue::Block(Box::new(BlockRecord {
             block_header: *new_block.header(),
             file_location: BlockFileLocation {
@@ -459,13 +449,6 @@ impl ArchivalState {
                 offset: file_offset,
                 block_length: serialized_block_size as usize,
             },
-            min_aocl_index: new_block
-                .mutator_set_accumulator_after()
-                .expect("MS update for new block must exist")
-                .aocl
-                .num_leafs()
-                - num_additions,
-            num_additions,
             block_hash_witness: HeaderToBlockHashWitness::from(new_block),
         }));
 
@@ -694,128 +677,6 @@ impl ArchivalState {
         Ok(Some(block))
     }
 
-    /// Return the block digest of the block in which an AOCL leaf with
-    /// specified index is contained.
-    pub(crate) async fn canonical_block_digest_of_aocl_index(
-        &self,
-        aocl_leaf_index: u64,
-    ) -> Result<Option<Digest>> {
-        // Is AOCL leaf contained in genesis block? Special-case this, as
-        // genesis block does not have a block record.
-        let genesis_tx: TransactionKernelProxy =
-            self.genesis_block.body().transaction_kernel.clone().into();
-        if aocl_leaf_index < genesis_tx.outputs.len().try_into().unwrap() {
-            return Ok(Some(self.genesis_block.hash()));
-        }
-
-        let (mut record, mut block_hash) = match self
-            .block_index_db
-            .get(BlockIndexKey::BlockTipDigest)
-            .await
-            .map(|record| record.as_tip_digest())
-        {
-            Some(tip_digest) => {
-                let record = self.get_block_record(tip_digest).await.unwrap();
-                (record, tip_digest)
-            }
-            None => {
-                // Tip is genesis block. But genesis block was checked. So this
-                // leaf index is not known.
-                return Ok(None);
-            }
-        };
-        let tip_height = record.block_header.height;
-
-        // Is AOCL leaf index after current tip?
-        if aocl_leaf_index > record.max_aocl_index() {
-            return Ok(None);
-        }
-
-        let mut min_block_height = BlockHeight::genesis().next();
-        let mut max_block_height = record.block_header.height;
-
-        // Do binary search to find block
-        // invariant: min_block_height <= record.block_header.height && record.block_header.height <= max_block_height
-        loop {
-            if aocl_leaf_index < record.min_aocl_index {
-                // Look below current height
-                max_block_height = record
-                    .block_header
-                    .height
-                    .previous()
-                    .expect("Genesis-block should be special-cased earlier in function.");
-            } else if aocl_leaf_index > record.max_aocl_index() {
-                // Look above current height
-                min_block_height = record.block_header.height.next();
-            } else {
-                return Ok(Some(block_hash));
-            };
-
-            let new_guess_height = BlockHeight::arithmetic_mean(min_block_height, max_block_height);
-            debug!(
-                "canonical_block_digest_of_aocl_index: binary search on [{}:{}] -- new guess is {} (/{})",
-                min_block_height, max_block_height, new_guess_height, tip_height
-            );
-            block_hash = self
-                .archival_block_mmr
-                .ammr()
-                .get_leaf_async(new_guess_height.into())
-                .await;
-            record = self.get_block_record(block_hash).await.unwrap();
-        }
-    }
-
-    /// Returns the 1st block containing this addition record. Returns
-    /// `None` if no canonical block with this output is known.
-    ///
-    /// searches max `max_search_depth` from tip for a matching transaction
-    /// output.
-    ///
-    /// If `max_search_depth` is set to `None`, then all blocks are searched
-    /// until a match is found. A `max_search_depth` of `Some(0)` will only
-    /// consider the tip.
-    pub(crate) async fn find_canonical_block_with_output(
-        &self,
-        output: AdditionRecord,
-        max_search_depth: Option<u64>,
-    ) -> Option<Block> {
-        let block_hash = self
-            .find_canonical_block_hash_with_output(output, max_search_depth)
-            .await?;
-        Some(
-            self.get_block(block_hash)
-                .await
-                .expect("Database reading of block must succeed")
-                .expect("Block reported to contain addition record must exist"),
-        )
-    }
-
-    async fn find_canonical_block_hash_with_output(
-        &self,
-        output: AdditionRecord,
-        max_search_depth: Option<u64>,
-    ) -> Option<Digest> {
-        let tip_height = self.tip_header().await.height.value();
-
-        let end = match max_search_depth {
-            Some(num) => tip_height.saturating_sub(num),
-            None => 0,
-        };
-
-        for block_height in (end..=tip_height).rev() {
-            let (addition_records, block_hash) = self
-                .addition_record_indices_for_block_by_height(block_height)
-                .await
-                .expect("Block height in search range must be known");
-
-            if addition_records.contains_key(&output) {
-                return Some(block_hash);
-            }
-        }
-
-        None
-    }
-
     /// Returns the block containing this input. Returns `None` if no canonical
     /// block with this input is known.
     ///
@@ -1018,160 +879,6 @@ impl ArchivalState {
                 .expect("Block loading must work")
                 .expect("Canonical block with in-range height must exist"),
         )
-    }
-
-    /// Returns a [`HashMap`] of [`AdditionRecord`] to AOCL leaf indices for
-    /// all outputs in a given block, including guesser rewards.  Also returns
-    /// the block hash. Returns `None` if no block at the specified height is
-    /// known. AOCL leaf indices have list type since a block can contain the
-    /// same addition record multiple times.
-    ///
-    /// Never loads the entire block from disk. Only reads from the database, so
-    /// performace should be good.
-    ///
-    /// # Panics
-    ///
-    ///  - If the database is corrupted.
-    pub(crate) async fn addition_record_indices_for_block_by_height(
-        &self,
-        block_height: u64,
-    ) -> Option<(HashMap<AdditionRecord, Vec<u64>>, Digest)> {
-        let (aocl_leaf_indices, block_hash) = if block_height == BlockHeight::genesis().value() {
-            // Special-case for genesis block since it has no block record.
-            let num_outputs_in_genesis: u64 = self
-                .genesis_block()
-                .body()
-                .transaction_kernel()
-                .outputs
-                .len()
-                .try_into()
-                .expect("Can always convert usize to u64");
-            let range = 0u64..=(num_outputs_in_genesis - 1);
-            (range, self.genesis_block().hash())
-        } else {
-            let Some(block_hash) = self
-                .archival_block_mmr
-                .ammr()
-                .try_get_leaf(block_height)
-                .await
-            else {
-                warn!("Attempted to get addition records for block height {block_height} which is not known.");
-                return None;
-            };
-
-            let block_record = self
-                .get_block_record(block_hash)
-                .await
-                .expect("Must know block record of canonical and non-genesis block");
-
-            let range = block_record.min_aocl_index..=block_record.max_aocl_index();
-            (range, block_hash)
-        };
-
-        // Getting all leafs in a batch-read operation was benchmarked to be
-        // faster than getting each leaf individually. So batch-reading of leafs
-        // was chosen here.
-        let addition_records = self
-            .archival_mutator_set
-            .ams()
-            .aocl
-            .get_leaf_range_inclusive_async(aocl_leaf_indices.clone())
-            .await;
-        let mut ret = HashMap::new();
-        for (ar, leaf_index) in addition_records.into_iter().zip_eq(aocl_leaf_indices) {
-            let addition_record = AdditionRecord::new(ar);
-            ret.entry(addition_record)
-                .and_modify(|e: &mut Vec<u64>| e.push(leaf_index))
-                .or_insert(vec![leaf_index]);
-        }
-
-        Some((ret, block_hash))
-    }
-
-    /// Returns a [`HashMap`] of [`AdditionRecord`] to [`Option`] of AOCL leaf
-    /// index (`u64`) for all outputs in a given block. If the block is not
-    /// canonical, the indices are all `None`, and conversely, if the block is
-    /// canonical then the indices point into the current mutator set AOCL.
-    /// If the block does not live in the archival state, return `None`.
-    ///
-    /// If the block is canonical this method never loads the entire blocks from
-    /// disk. So in that case, it is guaranteed to perform well.
-    ///
-    /// # Panics
-    ///
-    ///  - If the block is not canonical, was stored, and reading it from disk
-    ///    fails.
-    ///  - If the block is not canonical, was stored, and is invalid.
-    pub(crate) async fn get_addition_record_indices_for_block(
-        &self,
-        block_digest: Digest,
-    ) -> Option<HashMap<AdditionRecord, Option<u64>>> {
-        let maybe_block_record = self.get_block_record(block_digest).await;
-
-        let Some(block_record) = maybe_block_record else {
-            // If genesis, get the addition records from there
-            if block_digest == self.genesis_block().hash() {
-                return Some(
-                    self.genesis_block()
-                        .body()
-                        .transaction_kernel()
-                        .outputs
-                        .iter()
-                        .enumerate()
-                        .map(|(i, ar)| (*ar, Some(i as u64)))
-                        .collect::<HashMap<_, _>>(),
-                );
-            }
-
-            // No block record and not genesis block => block not known
-            return None;
-        };
-
-        // In the common case, the block is canonical, and then it is faster to
-        // read the addition records from the archival mutator set.
-        let block_is_canonical = self.block_belongs_to_canonical_chain(block_digest).await;
-        if block_is_canonical {
-            let aocl_leaf_indices = block_record.min_aocl_index..=block_record.max_aocl_index();
-            let addition_records = self
-                .archival_mutator_set
-                .ams()
-                .aocl
-                .get_leaf_range_inclusive_async(aocl_leaf_indices.clone())
-                .await;
-            Some(
-                addition_records
-                    .into_iter()
-                    .map(|digest| AdditionRecord {
-                        canonical_commitment: digest,
-                    })
-                    .zip(aocl_leaf_indices.into_iter().map(Some))
-                    .collect::<HashMap<_, _>>(),
-            )
-        }
-        // If the block is not canonical, we get the addition records from the
-        // block itself. The AOC leaf indices (the values in the returned hash
-        // map) will be set to `None` because AOCL leaf indices are only defined
-        // for confirmed outputs.
-        else {
-            let block = self
-                .get_block_from_block_record(block_record)
-                .await
-                .unwrap_or_else(|e| {
-                    panic!("could not read block from database: {e}");
-                });
-            let transaction_addition_records = block.body().transaction_kernel.outputs.clone();
-            let guesser_addition_records =
-                block.guesser_fee_addition_records().unwrap_or_else(|e| {
-                    panic!("stored block is invalid: {e}");
-                });
-            Some(
-                transaction_addition_records
-                    .into_iter()
-                    .chain(guesser_addition_records)
-                    .map(|ar| (ar, None))
-                    .collect::<HashMap<_, _>>(),
-            )
-        }
     }
 
     /// Return the digests of the known blocks at a specific height
