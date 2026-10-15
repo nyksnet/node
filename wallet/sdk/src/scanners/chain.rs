@@ -278,6 +278,7 @@ impl ChainScanner {
                             utxo,
                             sender_randomness,
                         }) => Some((utxo, sender_randomness, receiver_preimage)),
+                        NoteContent::Message(_) => None,
                     })
                     // A third party can craft a note that decrypts under this key but
                     // whose UTXO isn't actually spendable by us.

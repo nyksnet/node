@@ -24,10 +24,9 @@ pub(crate) fn network_hrp_char(network: Network) -> char {
     }
 }
 
-/// Derive a seed and a nonce deterministically, in order to produce
-/// deterministic announcements, since these are needed to be able to
-/// reuse proofs for tests. These values are used in the encryption
-/// step.
+/// Derive a seed and nonce deterministically from note content so encrypting
+/// the same content again produces the same announcement. These values are
+/// used in the encryption step and allow proofs to be reused in tests.
 pub(crate) fn deterministically_derive_seed_and_nonce(
     content: &NoteContent,
 ) -> ([u8; 32], BFieldElement) {
@@ -40,6 +39,17 @@ pub(crate) fn deterministically_derive_seed_and_nonce(
             let e2: [u8; 8] = e2.into();
             let e3: [u8; 8] = e3.into();
             let seed: [u8; 32] = [e0, e1, e2, e3].concat().try_into().unwrap();
+
+            (seed, e4)
+        }
+        NoteContent::Message(m) => {
+            let hash = Tip5::hash(&m.message);
+            let [e0, e1, e2, e3, e4] = hash.values();
+            let e0: [u8; 8] = e0.into();
+            let e1: [u8; 8] = e1.into();
+            let e2: [u8; 8] = e2.into();
+            let e3: [u8; 8] = e3.into();
+            let seed = [e0, e1, e2, e3].concat().try_into().unwrap();
 
             (seed, e4)
         }

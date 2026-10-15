@@ -1,13 +1,18 @@
 use clap::Parser;
 use num_traits::CheckedSub;
 use num_traits::Zero;
+use nyks_consensus::BFieldElement;
 use nyks_consensus::block::MINING_REWARD_TIME_LOCK_PERIOD;
 use nyks_consensus::network::Network;
 use nyks_consensus::proof_abstractions::timestamp::Timestamp;
 use nyks_consensus::tasm_lib::prelude::Digest;
+use nyks_consensus::transaction::announcement::Announcement;
 use nyks_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
 use nyks_standards::wallet::keys::address::Address;
 use nyks_standards::wallet::keys::address::Recipient;
+use nyks_standards::wallet::notes::content::MessageContent;
+use nyks_standards::wallet::notes::note::Note;
+use nyks_standards::wallet::notes::note::PublicNote;
 use nyks_wallet_core::transaction::builder::output::TxOutput;
 use nyks_wallet_core::transaction::builder::output::TxOutputList;
 use nyks_wallet_core::transaction::utxo::notifications::UtxoNotificationMedium;
@@ -33,6 +38,10 @@ pub struct Args {
     /// How much reward we leave for guessers.
     #[arg(long, default_value_t = 0.5f64)]
     pub guesser_fee_fraction: f64,
+
+    /// Graffiti message to publish in the block announcement.
+    #[arg(long, default_value = "nyks-composer")]
+    pub graffiti: Option<String>,
 }
 
 impl Args {
@@ -123,5 +132,15 @@ impl Args {
         };
 
         ret.into()
+    }
+
+    pub(crate) fn announcement(&self) -> Option<Announcement> {
+        self.graffiti.as_ref().map(|message| {
+            let message = format!("{message} {}", env!("CARGO_PKG_VERSION"));
+            let content = MessageContent::without_random_suffix(message);
+            let public_note = PublicNote::new(BFieldElement::new(0), content.into());
+
+            Announcement::from(&Note::from(public_note))
+        })
     }
 }

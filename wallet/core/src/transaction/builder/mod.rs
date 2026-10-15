@@ -6,6 +6,7 @@ use num_traits::Zero;
 
 use nyks_consensus::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use nyks_consensus::proof_abstractions::timestamp::Timestamp;
+use nyks_consensus::transaction::announcement::Announcement;
 use nyks_consensus::transaction::transaction_kernel::TransactionKernelProxy;
 use nyks_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
 use thiserror::Error;
@@ -35,6 +36,7 @@ pub struct TransactionBuilder {
     coinbase: Option<NativeCurrencyAmount>,
     timestamp: Option<Timestamp>,
     mutator_set_accumulator: Option<MutatorSetAccumulator>,
+    announcements: Vec<Announcement>,
 }
 
 // Builder interface
@@ -47,6 +49,7 @@ impl TransactionBuilder {
             coinbase: None,
             timestamp: None,
             mutator_set_accumulator: None,
+            announcements: Vec::new(),
         }
     }
 
@@ -79,6 +82,12 @@ impl TransactionBuilder {
         self.mutator_set_accumulator = Some(msa);
         self
     }
+
+    /// Add public announcements before output notification announcements.
+    pub fn custom_announcements(mut self, announcements: Vec<Announcement>) -> Self {
+        self.announcements = announcements;
+        self
+    }
 }
 
 impl TransactionBuilder {
@@ -94,7 +103,11 @@ impl TransactionBuilder {
         let kernel = {
             let input_records = inputs.removal_records(&msa);
             let output_records = outputs.addition_records();
-            let announcements = outputs.announcements();
+            let announcements = self
+                .announcements
+                .into_iter()
+                .chain(outputs.announcements())
+                .collect();
 
             TransactionKernelProxy {
                 inputs: input_records,

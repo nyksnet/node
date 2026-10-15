@@ -41,9 +41,38 @@ impl UtxoContent {
     }
 }
 
+/// Text message payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BFieldCodec)]
+pub struct MessageContent {
+    pub message: Vec<u8>,
+}
+
+impl MessageContent {
+    pub const DISCRIMINANT: u64 = 1;
+
+    /// Also adds an 8-byte random suffix, separated from the message by a space.
+    pub fn new(message: impl Into<String>) -> Self {
+        let mut message = message.into().into_bytes();
+        message.push(b' ');
+        message.extend_from_slice(&rand::random::<u64>().to_be_bytes());
+
+        Self { message }
+    }
+
+    /// Create message content without a random suffix.
+    /// Encrypting identical content under the same key reuses its nonce. Use only
+    /// for unencrypted content or when nonce uniqueness is handled elsewhere.
+    pub fn without_random_suffix(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into().into_bytes(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NoteContent {
     Utxo(UtxoContent),
+    Message(MessageContent),
 }
 
 impl NoteContent {
@@ -51,6 +80,7 @@ impl NoteContent {
     pub fn discriminant(&self) -> u64 {
         match self {
             Self::Utxo(_) => UtxoContent::DISCRIMINANT,
+            Self::Message(_) => MessageContent::DISCRIMINANT,
         }
     }
 }
@@ -61,12 +91,19 @@ impl From<UtxoContent> for NoteContent {
     }
 }
 
+impl From<MessageContent> for NoteContent {
+    fn from(message: MessageContent) -> Self {
+        Self::Message(message)
+    }
+}
+
 impl BFieldCodec for NoteContent {
     type Error = NoteContentError;
 
     fn encode(&self) -> Vec<BFieldElement> {
         let (discriminant, mut payload) = match self {
             Self::Utxo(u) => (UtxoContent::DISCRIMINANT, u.encode()),
+            Self::Message(message) => (MessageContent::DISCRIMINANT, message.encode()),
         };
 
         let mut out = Vec::with_capacity(1 + payload.len());
@@ -86,6 +123,11 @@ impl BFieldCodec for NoteContent {
                 let content =
                     UtxoContent::decode(rest).map_err(|e| NoteContentError::Decode(e.into()))?;
                 Ok(Box::new(Self::Utxo(*content)))
+            }
+            d if d == MessageContent::DISCRIMINANT => {
+                let message =
+                    MessageContent::decode(rest).map_err(|e| NoteContentError::Decode(e.into()))?;
+                Ok(Box::new(Self::Message(*message)))
             }
             _ => Err(NoteContentError::UnknownDiscriminant(discriminant)),
         }
@@ -121,6 +163,22 @@ mod tests {
         // decode(): success path, including the `Self::Utxo` reconstruction
         let decoded = *NoteContent::decode(&encoded).expect("valid encoding must decode");
         assert_eq!(decoded, note_content);
+    }
+
+    #[test]
+    fn message_content_round_trips_through_note_content() {
+        let message = MessageContent::new("Hello, Nyks!");
+        let content: NoteContent = message.clone().into();
+
+        assert_eq!(content.discriminant(), MessageContent::DISCRIMINANT);
+        assert_eq!(content, NoteContent::Message(message));
+
+        // Encoding prefixes the message payload with the message discriminant.
+        let encoded = content.encode();
+        assert_eq!(encoded[0], BFieldElement::new(MessageContent::DISCRIMINANT));
+
+        // Decoding the encoded content reconstructs the original value.
+        assert_eq!(*NoteContent::decode(&encoded).unwrap(), content);
     }
 
     #[test]

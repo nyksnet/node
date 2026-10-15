@@ -130,6 +130,7 @@ impl TransactionProver {
         let transaction = TransactionBuilder::new()
             .inputs(TxInputList::empty())
             .outputs(composer_outputs.clone())
+            .custom_announcements(self.args.announcement().into_iter().collect())
             .coinbase(coinbase_amount)
             .fee(guesser_fee)
             .timestamp(timestamp)
